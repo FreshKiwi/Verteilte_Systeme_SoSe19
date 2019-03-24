@@ -23,7 +23,7 @@ struct session{
 	int sockfd;
 	int session_key;
 	int chunksize;
-	int chunks;
+	int chunk;
 	char * filename;
 };
 typedef struct session Session;
@@ -72,6 +72,7 @@ void dg_echo(int sockfd) {
 	Session *s;
 	s = malloc(sizeof(sizeof(Session)));
 	
+	
 	FILE* file;
 
 	for(;;) {
@@ -96,11 +97,11 @@ void dg_echo(int sockfd) {
 		if(strncmp(tok,"HSOSSTP_INITX",13)==0){
 			
 			tok = strtok(NULL,";");
+			
 			s->chunksize = atoi(tok);
+			s->chunk = 0;
 			
 			tok = strtok(NULL,";");
-	
-			
 			
 			s->filename = calloc(MAXLINE,sizeof(char));
 			strcpy(s->filename, tok);
@@ -116,17 +117,19 @@ void dg_echo(int sockfd) {
 		}
 		else if(strncmp(tok,"HSOSSTP_GETXX",13)==0){
 			
-			read = fread(msg, 1,100, file);
+			read = fread(msg, 1,s->chunksize, file);
 			if(read<=0){
-				sprintf(out,"HSOSSTP_FINXX;chunk no;%d;%s",read,msg);
+				sprintf(out,"HSOSSTP_FINXX;%d;%d;%s",s->chunk,read,msg);
+				
 			}
 			else{
-				sprintf(out,"HSOSSTP_DATAX;chunk no;%d;%s>",read,msg);
+				sprintf(out,"HSOSSTP_DATAX;%d;%d;%s",s->chunk,read,msg);
+				s->chunk++;
 			}
 			
 		}
 		else{
-			sprintf(out,"Hier kommen die Daten doch nicht");
+			sprintf(out,"Hier kommen die Daten doch nicht :|");
 		}
 		
 		n = strlen(out);
@@ -137,6 +140,7 @@ void dg_echo(int sockfd) {
 			err_abort("Fehler beim Schreiben des Sockets!");
 		}
     }
+
     free(s->filename);
     free(s);
     
