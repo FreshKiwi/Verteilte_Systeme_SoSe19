@@ -15,6 +15,7 @@
 #define SRV_PORT 8998
 #define MAX_SOCK 10
 #define MAXLINE 512
+#define MAXSESSIONS 5
 
 // Vorwaertsdeklarationen
 void dg_echo(int); 
@@ -25,6 +26,7 @@ struct session{
 	int chunksize;
 	int chunk;
 	char * filename;
+	FILE * file;
 };
 typedef struct session Session;
 // Explizite Deklaration zur Vermeidung von Warnungen
@@ -69,8 +71,10 @@ void dg_echo(int sockfd) {
 	struct sockaddr_in cli_addr;
 	char * tok;
 	static int key= 1 ;
+	Session *sessions;
 	Session *s;
-	s = malloc(sizeof(sizeof(Session)));
+	
+	sessions = calloc(MAXSESSIONS, sizeof(sizeof(Session)));
 	
 	
 	FILE* file;
@@ -97,6 +101,13 @@ void dg_echo(int sockfd) {
 		if(strncmp(tok,"HSOSSTP_INITX",13)==0){
 			
 			tok = strtok(NULL,";");
+			//neue session
+			//if(key = MAXSESSIONS)
+			
+			sessions[key-1].session_key = key;
+			key++;
+			
+			s = &sessions[key];
 			
 			s->chunksize = atoi(tok);
 			s->chunk = 0;
@@ -106,20 +117,34 @@ void dg_echo(int sockfd) {
 			s->filename = calloc(MAXLINE,sizeof(char));
 			strcpy(s->filename, tok);
 			
-			file = fopen(s->filename, "r");
+			s->file = fopen(s->filename, "r");
 			
-			if(file != NULL){
-				sprintf(out,"HSOSSTP_SIDXX;%d",key);
+			
+			if(s->file != NULL){
+				sprintf(out,"HSOSSTP_SIDXX;%d",s->session_key);
 			} 
 			else{
-				sprintf(out,"HSOSSTP_ERROR;reason; Datei nicht gefunden oder anderer Fehler :( SID: %d Filename: %s",key, s->filename);
+				sprintf(out,"HSOSSTP_ERROR;reason; Datei nicht gefunden oder anderer Fehler :( SID: %d Filename: %s",s->session_key, s->filename);
 			}
 		}
+		
 		else if(strncmp(tok,"HSOSSTP_GETXX",13)==0){
 			
-			read = fread(msg, 1,s->chunksize, file);
+			int i =0;
+			
+			tok = strtok(NULL , ";");
+			
+			for(i=0;i<MAXSESSIONS;i++){
+				if(sessions[i].session_key = atoi(tok)){
+					s = &sessions[i];
+				}
+			}
+			
+			FILE * f = s->file;
+			read = fread(msg, 1,s->chunksize, f);
+			
 			if(read<=0){
-				sprintf(out,"HSOSSTP_FINXX;%d;%d;%s",s->chunk,read,msg);
+				sprintf(out,"HSOSSTP_FINXX;chunkno=%d;key=%d;read=%d;msg=%s",s->chunk, s->session_key,read,msg);
 				
 			}
 			else{
@@ -140,9 +165,12 @@ void dg_echo(int sockfd) {
 			err_abort("Fehler beim Schreiben des Sockets!");
 		}
     }
-
-    free(s->filename);
-    free(s);
+    
+	for(n=0;n<MAXSESSIONS;n++){
+		free(sessions[n].filename);
+	}	
+	free(sessions);
+    
     
 }
 
