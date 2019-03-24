@@ -27,7 +27,6 @@ struct session{
 	char * filename;
 };
 typedef struct session Session;
-
 // Explizite Deklaration zur Vermeidung von Warnungen
 void exit(int code);
 void *memset(void *s, int c, size_t n);
@@ -51,8 +50,7 @@ int main(int argc, char *argv[]) {
 	srv_addr.sin_family = AF_INET;
 	srv_addr.sin_addr.s_addr = htonl(INADDR_ANY);
 	srv_addr.sin_port = htons(SRV_PORT);
-
-	if(bind(sockfd, (struct sockaddr *)&srv_addr,
+	if( bind(sockfd, (struct sockaddr *)&srv_addr,
 		sizeof(srv_addr)) < 0 ) {
 		err_abort("Kann lokale Adresse nicht binden, laeuft fremder Server?");
 	}
@@ -70,13 +68,15 @@ void dg_echo(int sockfd) {
 	char in[MAXLINE], out[MAXLINE+6], tmp[MAXLINE], msg[MAXLINE];
 	struct sockaddr_in cli_addr;
 	char * tok;
-	int key= 1;
+	static int key= 1 ;
 	Session *s;
-	s = malloc(sizeof(sizeof(Session)));
+	s =malloc(sizeof(sizeof(Session)));
 	
 	FILE* file;
 
 	for(;;) {
+		
+		
 		
 		alen = sizeof(cli_addr);
 		memset((void *)&in,'\0',sizeof(in));
@@ -92,42 +92,35 @@ void dg_echo(int sockfd) {
 		tok = strtok(tmp,";");
 		
 		
-		printf("ServerIn: %s\n",in);
-		
 		if(strncmp(tok,"HSOSSTP_INITX",13)==0){
 			tok = strtok(NULL,";");
 			s->chunksize = atoi(tok);
 			
 			tok = strtok(NULL,";");
+			tok++;
+			tok[strlen(tok)-1] = '\0';
 			s->filename = tok;
-			
-			//Speichern des Keys zur jeweiligen SESSION
-			s->session_key = key;
 			
 			file = fopen(s->filename, "r");
 			if(file != NULL){
-				//Senden des SESSION-KEYS 
-				sprintf(out,"HSOSSTP_SIDXX;%d",key);
-				n = strlen(out);
-				sendto(sockfd, out, n + 6, 0, (struct socketaddr*)&cli_addr, alen);
-				//Key für weitere SESSIONS
-				key++;
-			}else{
+				sprintf(out,"HSOSSTP_SIDXX;<%d>",key);
+			} 
+			else{
 				sprintf(out,"HSOSSTP_ERROR;<reason> Datei nicht gefunden oder anderer Fehler :( SID: %d Filename: %s",key, s->filename);
-
 			}
-
-		}else if(strncmp(tok,"HSOSSTP_GETXX",13)==0){
+		}
+		else if(strncmp(tok,"HSOSSTP_GETXX",13)==0){
 			
-			// WELCHE SESSION? 
 			read = fread(msg, 1,100, file);
 			if(read<=0){
 				sprintf(out,"HSOSSTP_DA;<chunk no>;<%d>;<%s>",read,msg);
-			}else{
+			}
+			else{
 				sprintf(out,"HSOSSTP_DATAX;<chunk no>;<%d>;<%s>",read,msg);
 			}
 			
-		}else{
+		}
+		else{
 			sprintf(out,"Hier kommen die Daten doch nicht");
 		}
 		
@@ -140,6 +133,7 @@ void dg_echo(int sockfd) {
 		}
     }
     free(s);
+    
 }
 
 
