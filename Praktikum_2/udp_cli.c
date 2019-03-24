@@ -87,22 +87,21 @@ void dg_client(int sockfd, struct sockaddr *srv_addr, int srv_len, char **argv){
 	//Create INIT-Message
 	strcpy(out, init);
 	
-	sprintf(chunksize, "<%d>;",(atoi(argv[2])));
+	sprintf(chunksize, "%d;",(atoi(argv[2])));
 	strcat(out,chunksize);
 	int csize = atoi(argv[2]);
 	
-	sprintf(filename,"<%s>",(argv[3]));
+	sprintf(filename,"%s",(argv[3]));
 	strcat(out, filename);
 
 	n = strlen(out);
 	//out[n]='\0';
 	
-	printf("out: %s\n",out);
-	
 	// INIT-Message an Server senden
 	if(sendto(sockfd,out,n,0,srv_addr,srv_len)!=n){
 		err_abort("Fehler beim Schreiben des Sockets!");
 	}
+	
 	#ifdef DEBUG
 	printf("out: %s\n",out);
 	#endif
@@ -128,10 +127,8 @@ void dg_client(int sockfd, struct sockaddr *srv_addr, int srv_len, char **argv){
 	if(strncmp(tok,"HSOSSTP_SIDXX",13)==0){
 		
 		tok = strtok(NULL, ";");
-		tok++;
-		tok[strlen(tok)-1]='\0';
 		key = atoi(tok);
-		sprintf(out,"HSOSSTP_GETXX;<%d>;<%d>",key,chunkno);
+		sprintf(out,"HSOSSTP_GETXX;%d;%d",key,chunkno);
 		
 		#ifdef DEBUG
 		printf("out: %s\n",out);
@@ -150,6 +147,8 @@ void dg_client(int sockfd, struct sockaddr *srv_addr, int srv_len, char **argv){
 		err_abort("Fehler beim Lesen des Sockets!");
 		} 
 		chunkno++;
+		
+		//Debug & Log
 		#ifdef DEBUG
 		printf("in: %s\n",in);
 		#endif
@@ -159,9 +158,7 @@ void dg_client(int sockfd, struct sockaddr *srv_addr, int srv_len, char **argv){
 	
 	
 	else if(strncmp(tok,"HSOSSTP_ERROR",13)==0){
-		tok = strtok(NULL, ">");
-		tok++;
-		tok[strlen(tok)]='\0';
+		tok = strtok(NULL, ";");
 		printf("Die Ursache: %s\n", tok);
 	}
 	else{
@@ -183,15 +180,11 @@ void dg_client(int sockfd, struct sockaddr *srv_addr, int srv_len, char **argv){
 			
 			tok = strtok(NULL, ";");
 			
-			tok = strtok(NULL, ">");
-			tok++;
-			tok[strlen(tok)-1]='\0';
+			tok = strtok(NULL, ";");
 			
 			fwrite(tok, 1, csize, file); 
 			
 			chunkno++;
-			
-			sprintf(out,"HSOSSTP_GETXX;<%d>;<%d>",key,chunkno);
 			
 			if(sendto(sockfd,out,n,0,srv_addr,srv_len)!=n){
 			err_abort("Fehler beim Schreiben des Sockets!");
@@ -202,7 +195,7 @@ void dg_client(int sockfd, struct sockaddr *srv_addr, int srv_len, char **argv){
 			recvfrom(sockfd,in,MAXLINE,0,(struct sockaddr *)NULL,(int *)NULL);
 		}
 		else{
-			printf("Daten nicht empfangen :'(");
+			printf("Daten empfangen :)");
 			check = 0;
 			fclose(file);
 		}

@@ -70,7 +70,7 @@ void dg_echo(int sockfd) {
 	char * tok;
 	static int key= 1 ;
 	Session *s;
-	s =malloc(sizeof(sizeof(Session)));
+	s = malloc(sizeof(sizeof(Session)));
 	
 	FILE* file;
 
@@ -87,36 +87,41 @@ void dg_echo(int sockfd) {
 			err_abort("Fehler beim Lesen des Sockets!");	
 		}
 		
+		
 		strcpy(tmp, in);
 		
 		tok = strtok(tmp,";");
 		
 		
 		if(strncmp(tok,"HSOSSTP_INITX",13)==0){
+			
 			tok = strtok(NULL,";");
 			s->chunksize = atoi(tok);
 			
 			tok = strtok(NULL,";");
-			tok++;
-			tok[strlen(tok)-1] = '\0';
-			s->filename = tok;
+	
+			
+			
+			s->filename = calloc(MAXLINE,sizeof(char));
+			strcpy(s->filename, tok);
 			
 			file = fopen(s->filename, "r");
+			
 			if(file != NULL){
-				sprintf(out,"HSOSSTP_SIDXX;<%d>",key);
+				sprintf(out,"HSOSSTP_SIDXX;%d",key);
 			} 
 			else{
-				sprintf(out,"HSOSSTP_ERROR;<reason> Datei nicht gefunden oder anderer Fehler :( SID: %d Filename: %s",key, s->filename);
+				sprintf(out,"HSOSSTP_ERROR;reason; Datei nicht gefunden oder anderer Fehler :( SID: %d Filename: %s",key, s->filename);
 			}
 		}
 		else if(strncmp(tok,"HSOSSTP_GETXX",13)==0){
 			
 			read = fread(msg, 1,100, file);
 			if(read<=0){
-				sprintf(out,"HSOSSTP_DA;<chunk no>;<%d>;<%s>",read,msg);
+				sprintf(out,"HSOSSTP_FINXX;chunk no;%d;%s",read,msg);
 			}
 			else{
-				sprintf(out,"HSOSSTP_DATAX;<chunk no>;<%d>;<%s>",read,msg);
+				sprintf(out,"HSOSSTP_DATAX;chunk no;%d;%s>",read,msg);
 			}
 			
 		}
@@ -132,6 +137,7 @@ void dg_echo(int sockfd) {
 			err_abort("Fehler beim Schreiben des Sockets!");
 		}
     }
+    free(s->filename);
     free(s);
     
 }
