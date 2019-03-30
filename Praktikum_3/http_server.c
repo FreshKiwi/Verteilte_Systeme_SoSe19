@@ -18,12 +18,13 @@
 #define SRV_PORT 8998
 #define MAX_SOCK 10
 #define MAXLINE 512
+#define CHUNKSIZE 100
 
 // Vorwaertsdeklarationen intern
 void resp(int, DIR *); 
 void err_abort(char *str);
 void getFileName(char *, char **);
-void createChunk(char *, char *msg);
+int createHeader(char *, char *);
 
 int main(int argc, char *argv[]) {
 	char *name;
@@ -35,13 +36,15 @@ int main(int argc, char *argv[]) {
     
 	//Behandeln der Argumente
 	strcpy(docroot, argv[1]);
-
-	if ((chdir (docroot)) != 0) {
+        
+    getcwd(cwd, sizeof(cwd));
+    printf("cwd = %s\n",cwd);
+        
+    if ((chdir (docroot)) != 0) {
         printf("ERROR: %s\n", strerror(errno));
         exit (1);
     }
-    getcwd(cwd, sizeof(cwd));
-    printf("cwd = %s\n",cwd);
+    
     
     port = strtol(argv[2],NULL,10);
     
@@ -81,107 +84,138 @@ int main(int argc, char *argv[]) {
 	printf("TCP Echo-Server: bereit ...\n");
 
 	for(;;){
+                printf("_1___________________for(;;)[Main]\n");
 		alen = sizeof(cli_addr);
 
 		// Verbindung aufbauen
 		newsockfd = accept(sockfd,(struct sockaddr *)&cli_addr,&alen);
+                
 		if(newsockfd < 0){
 			err_abort("Fehler beim Verbindungsaufbau!");
 		}
+                else{
 
 		// fuer jede Verbindung einen Kindprozess erzeugen
 		if((pid = fork()) < 0){
 			err_abort("Fehler beim Erzeugen eines Kindprozesses!");
 		}else if(pid == 0){
+                        printf("_2___________________pid==0\n");
 			close(sockfd);
 			resp(newsockfd, dir);
 			exit(0);
 		}
+                }
+               printf("_3___________________close(newsockfd)\n");
 		close(newsockfd);
 	}
+    printf("_4___________________Fin.\n");
 } 
-
 /* str_echo: Lesen von Daten vom Socket und an den Client zuruecksenden 
-*/
-void resp(int sockfd,DIR * dir) {
-	FILE * file;
-	char *filename;
-	int n, msg_length;
-	char in[MAXLINE], out[MAXLINE], msg[MAXLINE];
+ */
+void resp(int sockfd, DIR * dir) {
+    FILE * file;
+    int n, msg_length, resp_choice;
+    char in[MAXLINE], out[MAXLINE], msg[MAXLINE],filename[MAXLINE];
 
-	memset((void *)in,'\0',MAXLINE);
-	
-	// Daten vom Socket lesen
-	n = read(sockfd,in,MAXLINE);
-	if(n == 0){
-			return;
-	}else if(n < 0){
-		err_abort("Fehler beim Lesen des Sockets!");
-	}
-	getFileName(in, &filename);
-	file = fopen(filename,"r");
-	
-	if(file){
-		
-		//Erstellen des Headers
-		msg_length = 100;
-		//createChunk(out, msg);
-		
-		
-		
-		char header [MAXLINE] ="HTTP/1.1 200 OK\nContent-Type: text/html; charset=utf-8\r\n\r\n";
-		n= strlen(header);
-		if(write(sockfd, header, n) != n){
-				err_abort("Fehler beim Schreiben des Sockets!");
-		}
-		out[0] = 0;
-		
-		
-		while(msg_length == 100){
-				
-				msg_length = fread(out, 1, 100,file);
-				
-				printf("msg_length = %d\n", msg_length);
-				
-			
-				printf("%s",out);			
-				
-				out[msg_length] = '\0';
-				n = strlen(out);
-				
-				if(write(sockfd, out, n) != n){
-					err_abort("Fehler beim Schreiben des Sockets!");
-				}
-				out[0] = 0;
-				
-		}
-		
-		printf("msg_length = %d\n", msg_length);
-		fclose(file);
-	}
-	else{
-		
-		sprintf(out, "HTTP/1.1 404 NOT_FOUND");
-		n = strlen(out);
-		if(write(sockfd, out, n) != n){
-					err_abort("Fehler beim Schreiben des Sockets!");
-				}
-	}
+    memset((void *) in, '\0', MAXLINE);
+
+    // Daten vom Socket lesen
+    n = read(sockfd, in, MAXLINE);
+    printf("_5___________________in:\n %s\n", in);
+    if (n == 0) {
+        return;
+    } else if (n < 0) {
+        err_abort("Fehler beim Lesen des Sockets!");
+    }
+
+    //Filename extrahieren
+    getFileName(in, &filename);
+    printf("_6.1___________________filename: %s\n",filename);
+    if(!strncmp(filename,"ServerHTTPPost",14)){
+        file = fopen("response.html", "r");
+    }
+    else{
+        file = fopen(filename, "r");
+        printf("_6.1___________________filename: %s\n",filename);
+    }
+    
+    if (file) {
+
+        msg_length = CHUNKSIZE;
+
+        //Senden der Response
+        resp_choice = createHeader(out,in);
+        
+        n = strlen(out);
+        if (write(sockfd, out, n) != n)  {
+            err_abort("Fehler beim Schreiben des Sockets!");
+        }
+
+        if (resp_choice == 0) {
+            while (msg_length == CHUNKSIZE) {
+
+                msg_length = fread(out, 1, CHUNKSIZE, file);
+
+                out[msg_length] = '\0';
+                n = strlen(out);
+
+                if (write(sockfd, out, n) != n) {
+                    err_abort("Fehler beim Schreiben des Sockets!");
+                }
+
+            }
+        }
+        else if(resp_choice == 1){
+            while (msg_length == CHUNKSIZE) {
+
+                msg_length = fread(out, 1, CHUNKSIZE, file);
+
+                n = msg_length;
+
+                if (write(sockfd, out, n) != n) {
+                    err_abort("Fehler beim Schreiben des Sockets!");
+                }
+
+            }
+        }
+
+        printf("WHILE wurde durchbrochen, ms_lngth= %d\n", msg_length);
+        fclose(file);
+    } else {
+
+        sprintf(out, "HTTP/1.1 404 NOT_FOUND");
+        n = strlen(out);
+        if (write(sockfd, out, n) != n) {
+            err_abort("Fehler beim Schreiben des Sockets!");
+        }
+    }
 }
 
 
-void createChunk(char *chunk, char *msg){
-	char  header [MAXLINE] ="HTTP/1.1 200 OK\nContent-Type: text/html; charset=utf-8\n\n";
-	sprintf(chunk,"%s%s", header, msg);
-	printf("%s",chunk);
+int createHeader(char *out, char *in){
+    if(strstr(in,"text/html")){    
+        char  header [MAXLINE] ="HTTP/1.1 200 OK\nContent-Type: text/html; charset=utf-8\n\n";
+        sprintf(out,"%s", header);
+        return 0;
+    }
+    if(strstr(in,"image/webp")){    
+        char  header [MAXLINE] ="HTTP/1.1 200 OK\nContent-Type: image/webp; charset=utf-8\n\n";
+        sprintf(out,"%s", header);
+        return 1;
+    }
+    else return 0;
 }
 
-void getFileName(char * req, char** name){
-	char *tok;
-	tok = strtok(req,  " \t\r\n");
-	tok = strtok(NULL, " \t");
-	tok++;
-    (*name) = tok;
+void getFileName(char * req, char** filename) {
+    char tmp[MAXLINE];
+    if(strstr(req,"GET")){
+        sscanf (req, "GET /%255s HTTP/", tmp);
+        strcpy(filename, tmp);
+    }
+    else{ 
+        sscanf (req, "POST /%255s HTTP/", tmp);
+        strcpy(filename, tmp);
+    }
 }
 
 
