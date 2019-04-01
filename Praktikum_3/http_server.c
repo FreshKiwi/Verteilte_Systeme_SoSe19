@@ -151,35 +151,22 @@ void resp(int sockfd, DIR * dir) {
             err_abort("Fehler beim Schreiben des Sockets!");
         }
 
-        if (resp_choice == 0) {
+ 
             while (msg_length == CHUNKSIZE) {
 
                 msg_length = fread(out, 1, CHUNKSIZE, file);
-
+				
                 out[msg_length] = '\0';
                 n = strlen(out);
 
-                if (write(sockfd, out, n) != n) {
+                if (write(sockfd, out, msg_length) != msg_length) {
                     err_abort("Fehler beim Schreiben des Sockets!");
                 }
 
             }
             printf("html %s wurde gesendet\n",filename);
-        }
-        else if(resp_choice == 1){
-            while (msg_length == CHUNKSIZE) {
-
-                msg_length = fread(out, 1, CHUNKSIZE, file);
-
-                n = msg_length;
-
-                if (write(sockfd, out, n) != n) {
-                    err_abort("Fehler beim Schreiben des Sockets!");
-                }
-
-            }
-            printf("Bild %s wurde gesendet\n",filename);
-        }
+        
+      
         fclose(file);
     } else {
 
