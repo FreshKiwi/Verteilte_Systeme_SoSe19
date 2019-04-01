@@ -84,7 +84,7 @@ int main(int argc, char *argv[]) {
 	printf("TCP Echo-Server: bereit ...\n");
 
 	for(;;){
-                printf("_1___________________for(;;)[Main]\n");
+                //printf("_1___________________for(;;)[Main]\n");
 		alen = sizeof(cli_addr);
 
 		// Verbindung aufbauen
@@ -99,16 +99,16 @@ int main(int argc, char *argv[]) {
 		if((pid = fork()) < 0){
 			err_abort("Fehler beim Erzeugen eines Kindprozesses!");
 		}else if(pid == 0){
-                        printf("_2___________________pid==0\n");
+                        //printf("_2___________________pid==0\n");
 			close(sockfd);
 			resp(newsockfd, dir);
 			exit(0);
 		}
                 }
-               printf("_3___________________close(newsockfd)\n");
+               //printf("_3___________________close(newsockfd)\n");
 		close(newsockfd);
 	}
-    printf("_4___________________Fin.\n");
+    //printf("_4___________________Fin.\n");
 } 
 /* str_echo: Lesen von Daten vom Socket und an den Client zuruecksenden 
  */
@@ -130,13 +130,13 @@ void resp(int sockfd, DIR * dir) {
 
     //Filename extrahieren
     getFileName(in, &filename);
-    printf("_6.1___________________filename: %s\n",filename);
+    //printf("_6.1___________________filename: %s\n",filename);
     if(!strncmp(filename,"ServerHTTPPost",14)){
         file = fopen("response.html", "r");
     }
     else{
         file = fopen(filename, "r");
-        printf("_6.1___________________filename: %s\n",filename);
+        //printf("_6.1___________________filename: %s\n",filename);
     }
     
     if (file) {
@@ -164,6 +164,7 @@ void resp(int sockfd, DIR * dir) {
                 }
 
             }
+            printf("html %s wurde gesendet\n",filename);
         }
         else if(resp_choice == 1){
             while (msg_length == CHUNKSIZE) {
@@ -177,9 +178,8 @@ void resp(int sockfd, DIR * dir) {
                 }
 
             }
+            printf("Bild %s wurde gesendet\n",filename);
         }
-
-        printf("WHILE wurde durchbrochen, ms_lngth= %d\n", msg_length);
         fclose(file);
     } else {
 
@@ -193,12 +193,17 @@ void resp(int sockfd, DIR * dir) {
 
 
 int createHeader(char *out, char *in){
-    if(strstr(in,"text/html")){    
+    if(strstr(in,"text/html") && (!strstr(in,".ico ")) ){    
         char  header [MAXLINE] ="HTTP/1.1 200 OK\nContent-Type: text/html; charset=utf-8\n\n";
         sprintf(out,"%s", header);
         return 0;
     }
-    if(strstr(in,"image/webp")){    
+    else if(strstr(in,"image/webp")){    
+        char  header [MAXLINE] ="HTTP/1.1 200 OK\nContent-Type: image/webp; charset=utf-8\n\n";
+        sprintf(out,"%s", header);
+        return 1;
+    }
+    else if(strstr(in,"*/*")){    
         char  header [MAXLINE] ="HTTP/1.1 200 OK\nContent-Type: image/webp; charset=utf-8\n\n";
         sprintf(out,"%s", header);
         return 1;
