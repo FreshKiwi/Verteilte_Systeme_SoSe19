@@ -1,0 +1,15 @@
+// Die Anwendung dieser Policy kann über die VM Option
+//    '-Djava.security.debug=all' kontrolliert werden.
+// Weitere Einstellungen:
+//    '-Djava.rmi.server.codebase=file:///home/student/NetBeansProjects/time_server_rmi/build/classes/'
+//    '-Djava.security.policy=timer.policy'
+//
+
+grant {
+  permission java.net.SocketPermission "127.0.0.1", "accept,connect,resolve";
+  permission java.net.SocketPermission "127.0.1.1", "accept,connect,resolve";
+  // Mit dem folgenden Eintrag kann man alle Problem umgehen: er schaltet.
+  // alle Sicherheitsmassnahmen und damit die Einschränkungen aus.
+  // Dieser sollte aber nur zum Testen einer Anwendung verwendet werden.
+  // permission java.security.AllPermission;
+};
